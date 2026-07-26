@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: kart_offer_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - offer-postgres-data:/var/lib/postgresql/data
+
+  mongo:
+    image: mongo:7.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - offer-mongo-data:/data/db
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  offer-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ConnectionStrings__OfferDatabase: "Host=postgres;Port=5432;Database=kart_offer_dev;Username=postgres;Password=postgres"
+      Mongo__ConnectionString: "mongodb://mongo:27017"
+      Mongo__Database: "kart_offer_read_dev"
+      RabbitMq__HostName: "rabbitmq"
+    depends_on:
+      - postgres
+      - mongo
+      - rabbitmq
+
+volumes:
+  offer-postgres-data:
+  offer-mongo-data:

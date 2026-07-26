@@ -1,0 +1,74 @@
+{
+  "service": "kart-offer-service",
+  "exchanges": [
+    { "name": "offer.exchange", "type": "topic", "durable": true },
+    { "name": "offer.dlx", "type": "topic", "durable": true }
+  ],
+  "externalExchanges": [
+    { "name": "product.exchange", "type": "topic", "durable": true },
+    { "name": "order.exchange", "type": "topic", "durable": true }
+  ],
+  "publishedEvents": [
+    { "eventType": "CouponRedeemed", "exchange": "offer.exchange", "routingKey": "offer.coupon.redeemed" },
+    { "eventType": "CouponRedemptionVoided", "exchange": "offer.exchange", "routingKey": "offer.coupon.redemption-voided" },
+    { "eventType": "CouponIssued", "exchange": "offer.exchange", "routingKey": "offer.coupon.issued" },
+    { "eventType": "CouponDeactivated", "exchange": "offer.exchange", "routingKey": "offer.coupon.deactivated" },
+    { "eventType": "PriceQuoteIssued", "exchange": "offer.exchange", "routingKey": "offer.pricing.quote-issued" },
+    { "eventType": "PromotionActivated", "exchange": "offer.exchange", "routingKey": "offer.promotion.activated" },
+    { "eventType": "PromotionDeactivated", "exchange": "offer.exchange", "routingKey": "offer.promotion.deactivated" }
+  ],
+  "queues": [
+    {
+      "name": "offer.product-events.queue",
+      "durable": true,
+      "bindings": [
+        { "exchange": "product.exchange", "routingKey": "product.price.changed" }
+      ],
+      "deadLetter": { "exchange": "offer.dlx", "routingKey": "offer.product-events.dlq" },
+      "retryLadder": {
+        "requeueTo": "offer.product-events.queue",
+        "tiers": [
+          { "name": "offer.product-events.retry.30s", "ttlMs": 30000 },
+          { "name": "offer.product-events.retry.5m", "ttlMs": 300000 }
+        ]
+      }
+    },
+    {
+      "name": "offer.order-events.queue",
+      "durable": true,
+      "bindings": [
+        { "exchange": "order.exchange", "routingKey": "order.order.cancelled" }
+      ],
+      "deadLetter": { "exchange": "offer.dlx", "routingKey": "offer.order-events.dlq" },
+      "retryLadder": {
+        "requeueTo": "offer.order-events.queue",
+        "tiers": [
+          { "name": "offer.order-events.retry.30s", "ttlMs": 30000 },
+          { "name": "offer.order-events.retry.5m", "ttlMs": 300000 }
+        ]
+      }
+    },
+    {
+      "name": "offer.read-model-projection.queue",
+      "durable": true,
+      "bindings": [
+        { "exchange": "offer.exchange", "routingKey": "offer.coupon.#" },
+        { "exchange": "offer.exchange", "routingKey": "offer.promotion.#" }
+      ],
+      "deadLetter": { "exchange": "offer.dlx", "routingKey": "offer.read-model-projection.dlq" },
+      "retryLadder": {
+        "requeueTo": "offer.read-model-projection.queue",
+        "tiers": [
+          { "name": "offer.read-model-projection.retry.30s", "ttlMs": 30000 },
+          { "name": "offer.read-model-projection.retry.5m", "ttlMs": 300000 }
+        ]
+      }
+    }
+  ],
+  "deadLetterQueues": [
+    { "name": "offer.product-events.dlq", "exchange": "offer.dlx", "routingKey": "offer.product-events.dlq" },
+    { "name": "offer.order-events.dlq", "exchange": "offer.dlx", "routingKey": "offer.order-events.dlq" },
+    { "name": "offer.read-model-projection.dlq", "exchange": "offer.dlx", "routingKey": "offer.read-model-projection.dlq" }
+  ],
+  "_comment": "Source of truth for this service's entire RabbitMQ topology (event-contract.md; the draft manifest in kart-platform/docs/services/kart-offer-service/message-bus-manifest.json only sketched the two inbound consumer queues - this file completes it with this service's own publishing topology and CQRS read-model projection queue). Nothing here is hardcoded in C# - RabbitMqTopologyProvisioner declares every exchange/queue/binding/DLQ/retry-tier straight from this file at startup, exactly like kart-identity-service/kart-category-service/kart-delivery-tracking-service. CouponRedeemed/CouponRedemptionVoided/CouponIssued/CouponDeactivated/PriceQuoteIssued/PromotionActivated/PromotionDeactivated are all published via this service's own EF Core/PostgreSQL transactional outbox (OutboxRelayHostedService), which retries indefinitely until RabbitMQ is reachable rather than dead-lettering - so, per the same convention used across services, published events appear only in publishedEvents, never with a DLQ of their own. offer.read-model-projection.queue is this service's own internal async pipeline: it self-consumes every event this service just published on offer.exchange to keep the MongoDB denormalized read models (CQRS query side) in sync with the PostgreSQL write side - the same 'self-consumed event' shape kart-delivery-tracking-service uses for its own internal ingestion pipeline, applied here to CQRS projection instead."
+}
