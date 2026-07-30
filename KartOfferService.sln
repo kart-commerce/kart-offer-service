@@ -15,6 +15,15 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KartOfferService.Api", "src
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{BCC53A61-1302-42B5-B29F-A70D55BDF89A}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "contracts", "contracts", "{D60496A2-EACE-4380-94A7-CA5CAA7E4D63}"
+	ProjectSection(SolutionItems) = preProject
+		contracts\api-contract.yaml = contracts\api-contract.yaml
+		contracts\event-contract.md = contracts\event-contract.md
+		contracts\kart-offer-service-messaging-diagram.md = contracts\kart-offer-service-messaging-diagram.md
+		contracts\message-bus-manifest.json = contracts\message-bus-manifest.json
+		contracts\README.md = contracts\README.md
+	EndProjectSection
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KartOfferService.UnitTests", "tests\UnitTests\KartOfferService.UnitTests.csproj", "{29A2CE7F-77AB-4977-BBC3-B0ABD0E6C3A5}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KartOfferService.IntegrationTests", "tests\IntegrationTests\KartOfferService.IntegrationTests.csproj", "{3004D1F0-3716-44CA-8848-F0DED2B74B5D}"
