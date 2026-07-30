@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Kart.Shared.Messaging;
 using KartOfferService.Application.Features.RecomputeCatalogPrice;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
