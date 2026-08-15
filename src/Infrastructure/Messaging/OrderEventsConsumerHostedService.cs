@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json;
 using Kart.Shared.Messaging;
+using Kart.Shared.Observability;
+using KartOfferService.Application.Common;
 using KartOfferService.Application.Features.VoidCouponRedemption;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -73,6 +75,8 @@ public sealed class OrderEventsConsumerHostedService : BackgroundService
 
     private async Task OnMessageReceivedAsync(IModel channel, BasicDeliverEventArgs deliverEventArgs, CancellationToken stoppingToken)
     {
+        using var _ = KartFlowContext.Push(FlowNames.OffersCouponsPromotionsManagementAdmin);
+
         try
         {
             using var scope = _scopeFactory.CreateScope();
@@ -82,6 +86,16 @@ public sealed class OrderEventsConsumerHostedService : BackgroundService
             var payload = JsonSerializer.Deserialize<OrderCancelledEventPayload>(json, SerializerOptions)
                 ?? throw new InvalidOperationException("OrderCancelled payload deserialized to null.");
 
+            _logger.LogInformation(
+                "Stage {Stage}: consumed OrderCancelled from {Queue} for order {OrderId}",
+                "EventConsumed",
+                QueueName,
+                payload.OrderId);
+
+            _logger.LogInformation(
+                "Stage {Stage}: dispatching VoidCouponRedemptionCommand for order {OrderId}",
+                "VoidCouponRedemptionCommandDispatched",
+                payload.OrderId);
             var result = await sender.Send(new VoidCouponRedemptionCommand(payload.OrderId), stoppingToken);
             if (result.IsFailure)
             {

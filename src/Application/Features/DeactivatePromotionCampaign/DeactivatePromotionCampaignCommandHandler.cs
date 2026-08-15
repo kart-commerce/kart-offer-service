@@ -3,6 +3,7 @@ using KartOfferService.Application.Common;
 using KartOfferService.Application.Common.Interfaces;
 using KartOfferService.Application.Common.Models;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace KartOfferService.Application.Features.DeactivatePromotionCampaign;
 
@@ -20,17 +21,20 @@ public sealed class DeactivatePromotionCampaignCommandHandler
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentPrincipal _currentPrincipal;
     private readonly TimeProvider _timeProvider;
+    private readonly ILogger<DeactivatePromotionCampaignCommandHandler> _logger;
 
     public DeactivatePromotionCampaignCommandHandler(
         IPromotionCampaignRepository campaigns,
         IUnitOfWork unitOfWork,
         ICurrentPrincipal currentPrincipal,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ILogger<DeactivatePromotionCampaignCommandHandler> logger)
     {
         _campaigns = campaigns;
         _unitOfWork = unitOfWork;
         _currentPrincipal = currentPrincipal;
         _timeProvider = timeProvider;
+        _logger = logger;
     }
 
     public async Task<Result<PromotionCampaignAdminViewDto>> Handle(DeactivatePromotionCampaignCommand request, CancellationToken cancellationToken)
@@ -38,11 +42,18 @@ public sealed class DeactivatePromotionCampaignCommandHandler
         var campaign = await _campaigns.GetAsync(request.CampaignId, cancellationToken);
         if (campaign is null)
         {
+            _logger.LogWarning("Stage {Stage}: deactivate-promotion-campaign rejected, campaign {CampaignId} not found", "PromotionCampaignNotFoundForDeactivate", request.CampaignId);
             return Result.Failure<PromotionCampaignAdminViewDto>(Error.NotFound($"Promotion campaign '{request.CampaignId}' not found."));
         }
 
         if (campaign.Version != request.ExpectedVersion)
         {
+            _logger.LogWarning(
+                "Stage {Stage}: deactivate-promotion-campaign rejected for {CampaignId}, expected version {ExpectedVersion} but current version is {CurrentVersion}",
+                "PromotionCampaignDeactivateStaleVersion",
+                request.CampaignId,
+                request.ExpectedVersion,
+                campaign.Version);
             return Result.Failure<PromotionCampaignAdminViewDto>(
                 Error.Custom(ErrorCodes.StaleVersion, $"Expected version {request.ExpectedVersion} but current version is {campaign.Version}."));
         }
@@ -50,6 +61,7 @@ public sealed class DeactivatePromotionCampaignCommandHandler
         campaign.Deactivate(_currentPrincipal.ActingPrincipal, _timeProvider.GetUtcNow());
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        _logger.LogInformation("Stage {Stage}: promotion campaign {CampaignId} deactivated", "PromotionCampaignDeactivatedStepCompleted", campaign.Id);
         return Result.Success(PromotionCampaignAdminViewDto.FromDomain(campaign));
     }
 }

@@ -2,6 +2,7 @@ using FluentAssertions;
 using KartOfferService.Application.Common.Interfaces;
 using KartOfferService.Application.Features.GetPromotionCampaignAdminView;
 using KartOfferService.Domain.Promotions;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -18,7 +19,7 @@ public class GetPromotionCampaignAdminViewQueryHandlerTests
         var campaign = PromotionCampaign.Create(Now, Now.AddDays(7), PercentageOffDiscountRule.Create(10).Value, "admin", Now).Value;
         campaigns.GetAsync(campaign.Id, Arg.Any<CancellationToken>()).Returns(campaign);
 
-        var result = await new GetPromotionCampaignAdminViewQueryHandler(campaigns)
+        var result = await new GetPromotionCampaignAdminViewQueryHandler(campaigns, NullLogger<GetPromotionCampaignAdminViewQueryHandler>.Instance)
             .Handle(new GetPromotionCampaignAdminViewQuery(campaign.Id), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -32,7 +33,7 @@ public class GetPromotionCampaignAdminViewQueryHandlerTests
         var campaignId = Guid.NewGuid();
         campaigns.GetAsync(campaignId, Arg.Any<CancellationToken>()).Returns((PromotionCampaign?)null);
 
-        var result = await new GetPromotionCampaignAdminViewQueryHandler(campaigns)
+        var result = await new GetPromotionCampaignAdminViewQueryHandler(campaigns, NullLogger<GetPromotionCampaignAdminViewQueryHandler>.Instance)
             .Handle(new GetPromotionCampaignAdminViewQuery(campaignId), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();

@@ -3,6 +3,7 @@ using KartOfferService.Application.Common.Interfaces;
 using KartOfferService.Application.Features.IssueCoupon;
 using KartOfferService.Domain.Coupons;
 using KartOfferService.UnitTests.TestSupport;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -17,7 +18,7 @@ public class IssueCouponCommandHandlerTests
     private readonly ICurrentPrincipal _currentPrincipal = Substitute.For<ICurrentPrincipal>();
 
     private IssueCouponCommandHandler CreateHandler() =>
-        new(_coupons, _unitOfWork, _currentPrincipal, new FixedTimeProvider(Now));
+        new(_coupons, _unitOfWork, _currentPrincipal, new FixedTimeProvider(Now), NullLogger<IssueCouponCommandHandler>.Instance);
 
     [Fact]
     public async Task Handle_WhenCouponCodeAlreadyExists_ReturnsConflict_AndNeverSaves()

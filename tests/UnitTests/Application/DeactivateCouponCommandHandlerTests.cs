@@ -4,6 +4,7 @@ using KartOfferService.Application.Common.Interfaces;
 using KartOfferService.Application.Features.DeactivateCoupon;
 using KartOfferService.Domain.Coupons;
 using KartOfferService.UnitTests.TestSupport;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -18,7 +19,7 @@ public class DeactivateCouponCommandHandlerTests
     private readonly ICurrentPrincipal _currentPrincipal = Substitute.For<ICurrentPrincipal>();
 
     private DeactivateCouponCommandHandler CreateHandler() =>
-        new(_coupons, _unitOfWork, _currentPrincipal, new FixedTimeProvider(Now));
+        new(_coupons, _unitOfWork, _currentPrincipal, new FixedTimeProvider(Now), NullLogger<DeactivateCouponCommandHandler>.Instance);
 
     [Fact]
     public async Task Handle_WhenCouponNotFound_RollsBack_AndReturnsNotFound()

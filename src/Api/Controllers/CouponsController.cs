@@ -1,11 +1,13 @@
 using KartOfferService.Api.Common;
 using KartOfferService.Api.Security;
+using KartOfferService.Application.Common;
 using KartOfferService.Application.Common.Models;
 using KartOfferService.Application.Features.DeactivateCoupon;
 using KartOfferService.Application.Features.GetCouponAdminView;
 using KartOfferService.Application.Features.IssueCoupon;
 using KartOfferService.Application.Features.RedeemCoupon;
 using KartOfferService.Application.Features.ValidateCoupon;
+using Kart.Shared.Observability;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,22 +19,29 @@ namespace KartOfferService.Api.Controllers;
 public sealed class CouponsController : ControllerBase
 {
     private readonly ISender _sender;
+    private readonly ILogger<CouponsController> _logger;
 
-    public CouponsController(ISender sender)
+    public CouponsController(ISender sender, ILogger<CouponsController> logger)
     {
         _sender = sender;
+        _logger = logger;
     }
 
-    /// <summary>OFF-1: api-contract.yaml `POST /v1/coupons/validate` - checkout-path, read-only.</summary>
+    /// <summary>OFF-1: api-contract.yaml `POST /v1/coupons/validate` - checkout-path, read-only. business-flows.md flow #1's "Coupon" step.</summary>
     [HttpPost("validate")]
     [ProducesResponseType(typeof(ValidateCouponResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<ValidateCouponResponse>> Validate([FromBody] ValidateCouponRequest request, CancellationToken cancellationToken)
     {
-        var response = await _sender.Send(new ValidateCouponQuery(request.CouponCode, request.UserId, request.CartTotal), cancellationToken);
+        using var _ = KartFlowContext.Push(FlowNames.NormalShoppingPurchaseJourney);
+        _logger.LogInformation("Stage {Stage}: validate-coupon request received for {CouponCode}", "ValidateCouponRequestReceived", request.CouponCode);
+
+        var query = new ValidateCouponQuery(request.CouponCode, request.UserId, request.CartTotal);
+        _logger.LogInformation("Stage {Stage}: dispatching ValidateCouponQuery for {CouponCode}", "ValidateCouponQueryDispatched", request.CouponCode);
+        var response = await _sender.Send(query, cancellationToken);
         return Ok(response);
     }
 
-    /// <summary>OFF-2: api-contract.yaml `POST /v1/coupons/redeem` - requires `Idempotency-Key`.</summary>
+    /// <summary>OFF-2: api-contract.yaml `POST /v1/coupons/redeem` - requires `Idempotency-Key`. business-flows.md flow #1's "Coupon" step.</summary>
     [HttpPost("redeem")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -42,7 +51,12 @@ public sealed class CouponsController : ControllerBase
         [FromHeader(Name = "Idempotency-Key")] string idempotencyKey,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new RedeemCouponCommand(request.CouponCode, request.UserId, request.OrderId), cancellationToken);
+        using var _ = KartFlowContext.Push(FlowNames.NormalShoppingPurchaseJourney);
+        _logger.LogInformation("Stage {Stage}: redeem-coupon request received for {CouponCode}, order {OrderId}", "RedeemCouponRequestReceived", request.CouponCode, request.OrderId);
+
+        var command = new RedeemCouponCommand(request.CouponCode, request.UserId, request.OrderId);
+        _logger.LogInformation("Stage {Stage}: dispatching RedeemCouponCommand for {CouponCode}, order {OrderId}", "RedeemCouponCommandDispatched", request.CouponCode, request.OrderId);
+        var result = await _sender.Send(command, cancellationToken);
         return result.IsSuccess ? Ok() : this.MapFailure(result.Error);
     }
 
@@ -53,11 +67,16 @@ public sealed class CouponsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<CouponAdminViewDto>> GetAdminView([FromRoute] string couponCode, CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new GetCouponAdminViewQuery(couponCode), cancellationToken);
+        using var _ = KartFlowContext.Push(FlowNames.OffersCouponsPromotionsManagementAdmin);
+        _logger.LogInformation("Stage {Stage}: get-coupon-admin-view request received for {CouponCode}", "GetCouponAdminViewRequestReceived", couponCode);
+
+        var query = new GetCouponAdminViewQuery(couponCode);
+        _logger.LogInformation("Stage {Stage}: dispatching GetCouponAdminViewQuery for {CouponCode}", "GetCouponAdminViewQueryDispatched", couponCode);
+        var result = await _sender.Send(query, cancellationToken);
         return this.ToActionResult<CouponAdminViewDto, CouponAdminViewDto>(result, dto => Ok(dto));
     }
 
-    /// <summary>OFF-9: api-contract.yaml `POST /v1/coupons` (admin-only, ADR-0010). Requires `Idempotency-Key`.</summary>
+    /// <summary>OFF-9: api-contract.yaml `POST /v1/coupons` (admin-only, ADR-0010). Requires `Idempotency-Key`. business-flows.md flow #12's "Create Coupon" step.</summary>
     [HttpPost]
     [Authorize(Policy = AuthenticationExtensions.AdminPolicy)]
     [ProducesResponseType(typeof(CouponAdminViewDto), StatusCodes.Status201Created)]
@@ -68,14 +87,17 @@ public sealed class CouponsController : ControllerBase
         [FromHeader(Name = "Idempotency-Key")] string idempotencyKey,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(
-            new IssueCouponCommand(request.CouponCode, request.PerUserCap, request.GlobalCap, request.ValidFrom, request.ValidUntil),
-            cancellationToken);
+        using var _ = KartFlowContext.Push(FlowNames.OffersCouponsPromotionsManagementAdmin);
+        _logger.LogInformation("Stage {Stage}: issue-coupon request received for {CouponCode}", "IssueCouponRequestReceived", request.CouponCode);
+
+        var command = new IssueCouponCommand(request.CouponCode, request.PerUserCap, request.GlobalCap, request.ValidFrom, request.ValidUntil);
+        _logger.LogInformation("Stage {Stage}: dispatching IssueCouponCommand for {CouponCode}", "IssueCouponCommandDispatched", request.CouponCode);
+        var result = await _sender.Send(command, cancellationToken);
         return this.ToActionResult<CouponAdminViewDto, CouponAdminViewDto>(
             result, dto => CreatedAtAction(nameof(GetAdminView), new { couponCode = dto.CouponCode }, dto));
     }
 
-    /// <summary>OFF-10: api-contract.yaml `POST /v1/coupons/{couponCode}/deactivate` (admin-only). Requires `Idempotency-Key` + `If-Match`.</summary>
+    /// <summary>OFF-10: api-contract.yaml `POST /v1/coupons/{couponCode}/deactivate` (admin-only). Requires `Idempotency-Key` + `If-Match`. business-flows.md flow #12's "Expire/Deactivate" step.</summary>
     [HttpPost("{couponCode}/deactivate")]
     [Authorize(Policy = AuthenticationExtensions.AdminPolicy)]
     [ProducesResponseType(typeof(CouponAdminViewDto), StatusCodes.Status200OK)]
@@ -87,7 +109,12 @@ public sealed class CouponsController : ControllerBase
         [FromHeader(Name = "If-Match")] int ifMatch,
         CancellationToken cancellationToken)
     {
-        var result = await _sender.Send(new DeactivateCouponCommand(couponCode, ifMatch), cancellationToken);
+        using var _ = KartFlowContext.Push(FlowNames.OffersCouponsPromotionsManagementAdmin);
+        _logger.LogInformation("Stage {Stage}: deactivate-coupon request received for {CouponCode}", "DeactivateCouponRequestReceived", couponCode);
+
+        var command = new DeactivateCouponCommand(couponCode, ifMatch);
+        _logger.LogInformation("Stage {Stage}: dispatching DeactivateCouponCommand for {CouponCode}", "DeactivateCouponCommandDispatched", couponCode);
+        var result = await _sender.Send(command, cancellationToken);
         return this.ToActionResult<CouponAdminViewDto, CouponAdminViewDto>(result, dto => Ok(dto));
     }
 }

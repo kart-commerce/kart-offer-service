@@ -2,6 +2,7 @@ using FluentAssertions;
 using KartOfferService.Application.Common.Interfaces;
 using KartOfferService.Application.Features.GetCouponAdminView;
 using KartOfferService.Domain.Coupons;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -18,7 +19,8 @@ public class GetCouponAdminViewQueryHandlerTests
         var coupon = Coupon.Issue("SAVE10", null, null, Now, Now.AddDays(30), "admin", Now).Value;
         coupons.GetAsync("SAVE10", Arg.Any<CancellationToken>()).Returns(coupon);
 
-        var result = await new GetCouponAdminViewQueryHandler(coupons).Handle(new GetCouponAdminViewQuery("SAVE10"), CancellationToken.None);
+        var result = await new GetCouponAdminViewQueryHandler(coupons, NullLogger<GetCouponAdminViewQueryHandler>.Instance)
+            .Handle(new GetCouponAdminViewQuery("SAVE10"), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.CouponCode.Should().Be("SAVE10");
@@ -31,7 +33,8 @@ public class GetCouponAdminViewQueryHandlerTests
         var coupons = Substitute.For<ICouponRepository>();
         coupons.GetAsync("MISSING", Arg.Any<CancellationToken>()).Returns((Coupon?)null);
 
-        var result = await new GetCouponAdminViewQueryHandler(coupons).Handle(new GetCouponAdminViewQuery("MISSING"), CancellationToken.None);
+        var result = await new GetCouponAdminViewQueryHandler(coupons, NullLogger<GetCouponAdminViewQueryHandler>.Instance)
+            .Handle(new GetCouponAdminViewQuery("MISSING"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("not_found");

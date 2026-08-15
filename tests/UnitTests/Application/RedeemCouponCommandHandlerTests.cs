@@ -3,6 +3,7 @@ using KartOfferService.Application.Common.Interfaces;
 using KartOfferService.Application.Features.RedeemCoupon;
 using KartOfferService.Domain.Coupons;
 using KartOfferService.UnitTests.TestSupport;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -18,7 +19,7 @@ public class RedeemCouponCommandHandlerTests
     private readonly ICurrentPrincipal _currentPrincipal = Substitute.For<ICurrentPrincipal>();
 
     private RedeemCouponCommandHandler CreateHandler() =>
-        new(_coupons, _redemptions, _unitOfWork, _currentPrincipal, new FixedTimeProvider(Now));
+        new(_coupons, _redemptions, _unitOfWork, _currentPrincipal, new FixedTimeProvider(Now), NullLogger<RedeemCouponCommandHandler>.Instance);
 
     [Fact]
     public async Task Handle_WhenAlreadyRedeemedForSameOrder_IsIdempotent_AndNeverLocksOrWrites()

@@ -3,6 +3,7 @@ using KartOfferService.Application.Common.Interfaces;
 using KartOfferService.Application.Features.VoidCouponRedemption;
 using KartOfferService.Domain.Coupons;
 using KartOfferService.UnitTests.TestSupport;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -17,7 +18,7 @@ public class VoidCouponRedemptionCommandHandlerTests
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
 
     private VoidCouponRedemptionCommandHandler CreateHandler() =>
-        new(_coupons, _redemptions, _unitOfWork, new FixedTimeProvider(Now));
+        new(_coupons, _redemptions, _unitOfWork, new FixedTimeProvider(Now), NullLogger<VoidCouponRedemptionCommandHandler>.Instance);
 
     [Fact]
     public async Task Handle_WhenNoRedemptionsForOrder_IsNoOp_AndNeverOpensTransaction()

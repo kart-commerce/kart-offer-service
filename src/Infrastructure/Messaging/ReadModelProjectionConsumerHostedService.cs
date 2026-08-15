@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json;
 using Kart.Shared.Messaging;
+using Kart.Shared.Observability;
+using KartOfferService.Application.Common;
 using KartOfferService.Infrastructure.Persistence.ReadModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -28,6 +30,19 @@ public sealed class ReadModelProjectionConsumerHostedService : BackgroundService
 
     private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(10);
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
+
+    // Same event-type -> Flow map as OutboxRelayHostedService (this consumer self-consumes exactly
+    // the events that relay publishes) - kept as a private copy rather than a shared static so each
+    // hosted service's map stays independently readable, mirroring kart-admin-service's convention.
+    private static readonly Dictionary<string, string> EventFlowNames = new()
+    {
+        ["CouponRedeemed"] = FlowNames.NormalShoppingPurchaseJourney,
+        ["CouponIssued"] = FlowNames.OffersCouponsPromotionsManagementAdmin,
+        ["CouponDeactivated"] = FlowNames.OffersCouponsPromotionsManagementAdmin,
+        ["CouponRedemptionVoided"] = FlowNames.OffersCouponsPromotionsManagementAdmin,
+        ["PromotionActivated"] = FlowNames.OffersCouponsPromotionsManagementAdmin,
+        ["PromotionDeactivated"] = FlowNames.OffersCouponsPromotionsManagementAdmin,
+    };
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConnectionFactory _connectionFactory;
@@ -79,14 +94,26 @@ public sealed class ReadModelProjectionConsumerHostedService : BackgroundService
 
     private async Task OnMessageReceivedAsync(IModel channel, BasicDeliverEventArgs deliverEventArgs, CancellationToken stoppingToken)
     {
+        var eventType = _manifest.EventTypeForRoutingKey(deliverEventArgs.RoutingKey);
+        using var flowScope = EventFlowNames.TryGetValue(eventType, out var flowName)
+            ? KartFlowContext.Push(flowName)
+            : null;
+
         try
         {
             using var scope = _scopeFactory.CreateScope();
             var writer = scope.ServiceProvider.GetRequiredService<ReadModelProjectionWriter>();
             var json = Encoding.UTF8.GetString(deliverEventArgs.Body.Span);
-            var eventType = _manifest.EventTypeForRoutingKey(deliverEventArgs.RoutingKey);
 
+            _logger.LogInformation(
+                "Stage {Stage}: consumed {EventType} from {Queue}",
+                "EventConsumed",
+                eventType,
+                QueueName);
+
+            _logger.LogInformation("Stage {Stage}: read-model projection write started for {EventType}", "ReadModelWriteStarted", eventType);
             await ProjectAsync(writer, eventType, json, stoppingToken);
+            _logger.LogInformation("Stage {Stage}: read-model projection persisted for {EventType}", "ReadModelPersisted", eventType);
 
             channel.BasicAck(deliverEventArgs.DeliveryTag, multiple: false);
         }
