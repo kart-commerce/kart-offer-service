@@ -36,7 +36,6 @@ public sealed class CouponsController : ControllerBase
         _logger.LogInformation("Stage {Stage}: validate-coupon request received for {CouponCode}", "ValidateCouponRequestReceived", request.CouponCode);
 
         var query = new ValidateCouponQuery(request.CouponCode, request.UserId, request.CartTotal);
-        _logger.LogInformation("Stage {Stage}: dispatching ValidateCouponQuery for {CouponCode}", "ValidateCouponQueryDispatched", request.CouponCode);
         var response = await _sender.Send(query, cancellationToken);
         return Ok(response);
     }
@@ -55,7 +54,6 @@ public sealed class CouponsController : ControllerBase
         _logger.LogInformation("Stage {Stage}: redeem-coupon request received for {CouponCode}, order {OrderId}", "RedeemCouponRequestReceived", request.CouponCode, request.OrderId);
 
         var command = new RedeemCouponCommand(request.CouponCode, request.UserId, request.OrderId);
-        _logger.LogInformation("Stage {Stage}: dispatching RedeemCouponCommand for {CouponCode}, order {OrderId}", "RedeemCouponCommandDispatched", request.CouponCode, request.OrderId);
         var result = await _sender.Send(command, cancellationToken);
         return result.IsSuccess ? Ok() : this.MapFailure(result.Error);
     }
@@ -71,7 +69,6 @@ public sealed class CouponsController : ControllerBase
         _logger.LogInformation("Stage {Stage}: get-coupon-admin-view request received for {CouponCode}", "GetCouponAdminViewRequestReceived", couponCode);
 
         var query = new GetCouponAdminViewQuery(couponCode);
-        _logger.LogInformation("Stage {Stage}: dispatching GetCouponAdminViewQuery for {CouponCode}", "GetCouponAdminViewQueryDispatched", couponCode);
         var result = await _sender.Send(query, cancellationToken);
         return this.ToActionResult<CouponAdminViewDto, CouponAdminViewDto>(result, dto => Ok(dto));
     }
@@ -91,7 +88,6 @@ public sealed class CouponsController : ControllerBase
         _logger.LogInformation("Stage {Stage}: issue-coupon request received for {CouponCode}", "IssueCouponRequestReceived", request.CouponCode);
 
         var command = new IssueCouponCommand(request.CouponCode, request.PerUserCap, request.GlobalCap, request.ValidFrom, request.ValidUntil);
-        _logger.LogInformation("Stage {Stage}: dispatching IssueCouponCommand for {CouponCode}", "IssueCouponCommandDispatched", request.CouponCode);
         var result = await _sender.Send(command, cancellationToken);
         return this.ToActionResult<CouponAdminViewDto, CouponAdminViewDto>(
             result, dto => CreatedAtAction(nameof(GetAdminView), new { couponCode = dto.CouponCode }, dto));
@@ -113,7 +109,6 @@ public sealed class CouponsController : ControllerBase
         _logger.LogInformation("Stage {Stage}: deactivate-coupon request received for {CouponCode}", "DeactivateCouponRequestReceived", couponCode);
 
         var command = new DeactivateCouponCommand(couponCode, ifMatch);
-        _logger.LogInformation("Stage {Stage}: dispatching DeactivateCouponCommand for {CouponCode}", "DeactivateCouponCommandDispatched", couponCode);
         var result = await _sender.Send(command, cancellationToken);
         return this.ToActionResult<CouponAdminViewDto, CouponAdminViewDto>(result, dto => Ok(dto));
     }

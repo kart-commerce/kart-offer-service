@@ -35,9 +35,6 @@ public sealed class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<
             {
                 var requestName = typeof(TRequest).Name;
 
-                // Checkpoint-logging taxonomy stage 4 ("<Rule>ValidationFailed", logged at Warning
-                // with the reason before throwing) generalized here for every FluentValidation
-                // validator, rather than duplicated per handler.
                 _logger.LogWarning(
                     "Stage {Stage}: {RequestName} rejected - {Errors}",
                     $"{requestName}ValidationFailed",

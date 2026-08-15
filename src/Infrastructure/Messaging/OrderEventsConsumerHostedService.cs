@@ -87,14 +87,9 @@ public sealed class OrderEventsConsumerHostedService : BackgroundService
                 ?? throw new InvalidOperationException("OrderCancelled payload deserialized to null.");
 
             _logger.LogInformation(
-                "Stage {Stage}: consumed OrderCancelled from {Queue} for order {OrderId}",
+                "Stage {Stage}: consumed OrderCancelled from {Queue} for order {OrderId}, dispatching VoidCouponRedemptionCommand",
                 "EventConsumed",
                 QueueName,
-                payload.OrderId);
-
-            _logger.LogInformation(
-                "Stage {Stage}: dispatching VoidCouponRedemptionCommand for order {OrderId}",
-                "VoidCouponRedemptionCommandDispatched",
                 payload.OrderId);
             var result = await sender.Send(new VoidCouponRedemptionCommand(payload.OrderId), stoppingToken);
             if (result.IsFailure)

@@ -32,8 +32,7 @@ public sealed class ReadModelProjectionConsumerHostedService : BackgroundService
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
     // Same event-type -> Flow map as OutboxRelayHostedService (this consumer self-consumes exactly
-    // the events that relay publishes) - kept as a private copy rather than a shared static so each
-    // hosted service's map stays independently readable, mirroring kart-admin-service's convention.
+    // the events that relay publishes).
     private static readonly Dictionary<string, string> EventFlowNames = new()
     {
         ["CouponRedeemed"] = FlowNames.NormalShoppingPurchaseJourney,
@@ -106,12 +105,10 @@ public sealed class ReadModelProjectionConsumerHostedService : BackgroundService
             var json = Encoding.UTF8.GetString(deliverEventArgs.Body.Span);
 
             _logger.LogInformation(
-                "Stage {Stage}: consumed {EventType} from {Queue}",
+                "Stage {Stage}: consumed {EventType} from {Queue}, starting read-model projection write",
                 "EventConsumed",
                 eventType,
                 QueueName);
-
-            _logger.LogInformation("Stage {Stage}: read-model projection write started for {EventType}", "ReadModelWriteStarted", eventType);
             await ProjectAsync(writer, eventType, json, stoppingToken);
             _logger.LogInformation("Stage {Stage}: read-model projection persisted for {EventType}", "ReadModelPersisted", eventType);
 

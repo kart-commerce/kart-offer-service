@@ -55,11 +55,6 @@ public sealed class OfferDbContext : DbContext
     /// within this same call (design-decisions.md "Global Exception Handling"'s sibling concern,
     /// Event Publication Reliability) - the write and "the event will eventually publish" commit
     /// atomically, never as a separate, unguarded publish step.
-    ///
-    /// Checkpoint-logging taxonomy stage 6/7 (`&lt;Entity&gt;Persisted` + `&lt;Event&gt;OutboxEventEnqueued`)
-    /// is generalized here, once, rather than duplicated in every handler that mutates a Coupon/
-    /// PricingQuote/PromotionCampaign (mirrors how stage 3/4 are generalized in
-    /// LoggingBehavior/ValidationBehavior rather than per-handler).
     /// </summary>
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

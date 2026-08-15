@@ -36,7 +36,6 @@ public sealed class PromotionsController : ControllerBase
         _logger.LogInformation("Stage {Stage}: get-active-promotions request received (sku {Sku})", "GetActivePromotionsRequestReceived", sku);
 
         var query = new GetActivePromotionsQuery(sku);
-        _logger.LogInformation("Stage {Stage}: dispatching GetActivePromotionsQuery (sku {Sku})", "GetActivePromotionsQueryDispatched", sku);
         var response = await _sender.Send(query, cancellationToken);
         return Ok(response);
     }
@@ -52,7 +51,6 @@ public sealed class PromotionsController : ControllerBase
         _logger.LogInformation("Stage {Stage}: get-promotion-campaign-admin-view request received for {CampaignId}", "GetPromotionCampaignAdminViewRequestReceived", campaignId);
 
         var query = new GetPromotionCampaignAdminViewQuery(campaignId);
-        _logger.LogInformation("Stage {Stage}: dispatching GetPromotionCampaignAdminViewQuery for {CampaignId}", "GetPromotionCampaignAdminViewQueryDispatched", campaignId);
         var result = await _sender.Send(query, cancellationToken);
         return this.ToActionResult<PromotionCampaignAdminViewDto, PromotionCampaignAdminViewDto>(result, dto => Ok(dto));
     }
@@ -72,7 +70,6 @@ public sealed class PromotionsController : ControllerBase
         _logger.LogInformation("Stage {Stage}: create-promotion-campaign request received (starts {StartsAt}, ends {EndsAt})", "CreatePromotionCampaignRequestReceived", request.StartsAt, request.EndsAt);
 
         var command = new CreatePromotionCampaignCommand(request.StartsAt, request.EndsAt, request.DiscountRule);
-        _logger.LogInformation("Stage {Stage}: dispatching CreatePromotionCampaignCommand", "CreatePromotionCampaignCommandDispatched");
         var result = await _sender.Send(command, cancellationToken);
         return this.ToActionResult<PromotionCampaignAdminViewDto, PromotionCampaignAdminViewDto>(
             result, dto => CreatedAtAction(nameof(GetAdminView), new { campaignId = dto.CampaignId }, dto));
@@ -94,7 +91,6 @@ public sealed class PromotionsController : ControllerBase
         _logger.LogInformation("Stage {Stage}: deactivate-promotion-campaign request received for {CampaignId}", "DeactivatePromotionCampaignRequestReceived", campaignId);
 
         var command = new DeactivatePromotionCampaignCommand(campaignId, ifMatch);
-        _logger.LogInformation("Stage {Stage}: dispatching DeactivatePromotionCampaignCommand for {CampaignId}", "DeactivatePromotionCampaignCommandDispatched", campaignId);
         var result = await _sender.Send(command, cancellationToken);
         return this.ToActionResult<PromotionCampaignAdminViewDto, PromotionCampaignAdminViewDto>(result, dto => Ok(dto));
     }

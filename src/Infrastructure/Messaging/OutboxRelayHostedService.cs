@@ -24,11 +24,9 @@ public sealed class OutboxRelayHostedService : BackgroundService
     private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(10);
     private const int BatchSize = 100;
 
-    // Maps each published event type to the business-flows.md flow it belongs to, mirroring
-    // kart-admin-service's OutboxRelayHostedService ActionFlowNames map. `PriceQuoteIssued` is
-    // deliberately absent - Pricing is not one of the two flows this instrumentation pass covers,
-    // so it gets no Flow tag rather than a guessed one (same discipline as an unrecognized
-    // CreatedBy in the checkpoint-logging standard's own read-model-projection example).
+    // Maps each published event type to the business-flows.md flow it belongs to. `PriceQuoteIssued`
+    // is deliberately absent - Pricing is not one of the two flows this service covers, so it gets
+    // no Flow tag rather than a guessed one.
     private static readonly Dictionary<string, string> EventFlowNames = new()
     {
         ["CouponRedeemed"] = FlowNames.NormalShoppingPurchaseJourney,
