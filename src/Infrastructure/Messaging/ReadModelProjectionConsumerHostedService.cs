@@ -125,41 +125,41 @@ public sealed class ReadModelProjectionConsumerHostedService : BackgroundService
         switch (eventType)
         {
             case "CouponIssued":
-            {
-                var payload = Deserialize<CouponIssuedPayload>(json);
-                await writer.UpsertCouponAsync(payload.Code, payload.PerUserCap, payload.GlobalCap, payload.ValidFrom, payload.ValidUntil, DateTime.UtcNow, cancellationToken);
-                break;
-            }
+                {
+                    var payload = Deserialize<CouponIssuedPayload>(json);
+                    await writer.UpsertCouponAsync(payload.Code, payload.PerUserCap, payload.GlobalCap, payload.ValidFrom, payload.ValidUntil, DateTime.UtcNow, cancellationToken);
+                    break;
+                }
             case "CouponRedeemed":
-            {
-                var payload = Deserialize<CouponRedeemedPayload>(json);
-                await writer.IncrementCouponRedemptionsAsync(payload.Code, +1, DateTime.UtcNow, cancellationToken);
-                break;
-            }
+                {
+                    var payload = Deserialize<CouponRedeemedPayload>(json);
+                    await writer.IncrementCouponRedemptionsAsync(payload.Code, +1, DateTime.UtcNow, cancellationToken);
+                    break;
+                }
             case "CouponRedemptionVoided":
-            {
-                var payload = Deserialize<CouponRedemptionVoidedPayload>(json);
-                await writer.IncrementCouponRedemptionsAsync(payload.Code, -1, DateTime.UtcNow, cancellationToken);
-                break;
-            }
+                {
+                    var payload = Deserialize<CouponRedemptionVoidedPayload>(json);
+                    await writer.IncrementCouponRedemptionsAsync(payload.Code, -1, DateTime.UtcNow, cancellationToken);
+                    break;
+                }
             case "CouponDeactivated":
-            {
-                var payload = Deserialize<CouponDeactivatedPayload>(json);
-                await writer.UpdateCouponValidUntilAsync(payload.Code, payload.DeactivatedAt, DateTime.UtcNow, cancellationToken);
-                break;
-            }
+                {
+                    var payload = Deserialize<CouponDeactivatedPayload>(json);
+                    await writer.UpdateCouponValidUntilAsync(payload.Code, payload.DeactivatedAt, DateTime.UtcNow, cancellationToken);
+                    break;
+                }
             case "PromotionActivated":
-            {
-                var payload = Deserialize<PromotionActivatedPayload>(json);
-                await writer.UpsertPromotionAsync(payload.CampaignId.ToString(), payload.Window.StartsAt, payload.Window.EndsAt, DateTime.UtcNow, cancellationToken);
-                break;
-            }
+                {
+                    var payload = Deserialize<PromotionActivatedPayload>(json);
+                    await writer.UpsertPromotionAsync(payload.CampaignId.ToString(), payload.Window.StartsAt, payload.Window.EndsAt, DateTime.UtcNow, cancellationToken);
+                    break;
+                }
             case "PromotionDeactivated":
-            {
-                var payload = Deserialize<PromotionDeactivatedPayload>(json);
-                await writer.UpdatePromotionEndsAtAsync(payload.CampaignId.ToString(), payload.DeactivatedAt, DateTime.UtcNow, cancellationToken);
-                break;
-            }
+                {
+                    var payload = Deserialize<PromotionDeactivatedPayload>(json);
+                    await writer.UpdatePromotionEndsAtAsync(payload.CampaignId.ToString(), payload.DeactivatedAt, DateTime.UtcNow, cancellationToken);
+                    break;
+                }
             default:
                 throw new InvalidOperationException($"Read-model-projection consumer has no handling for event type '{eventType}'.");
         }
