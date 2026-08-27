@@ -8,3 +8,7 @@
 .idea/
 **/*.user
 tests/
+
+# Machine-specific, gitignored -- must never leak a real .env-equivalent into the image
+appsettings.Local.json
+**/appsettings.Local.json

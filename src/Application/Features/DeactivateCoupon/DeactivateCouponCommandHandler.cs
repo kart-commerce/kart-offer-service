@@ -3,6 +3,7 @@ using KartOfferService.Application.Common;
 using KartOfferService.Application.Common.Interfaces;
 using KartOfferService.Application.Common.Models;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace KartOfferService.Application.Features.DeactivateCoupon;
 
@@ -17,17 +18,20 @@ public sealed class DeactivateCouponCommandHandler : IRequestHandler<DeactivateC
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentPrincipal _currentPrincipal;
     private readonly TimeProvider _timeProvider;
+    private readonly ILogger<DeactivateCouponCommandHandler> _logger;
 
     public DeactivateCouponCommandHandler(
         ICouponRepository coupons,
         IUnitOfWork unitOfWork,
         ICurrentPrincipal currentPrincipal,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ILogger<DeactivateCouponCommandHandler> logger)
     {
         _coupons = coupons;
         _unitOfWork = unitOfWork;
         _currentPrincipal = currentPrincipal;
         _timeProvider = timeProvider;
+        _logger = logger;
     }
 
     public async Task<Result<CouponAdminViewDto>> Handle(DeactivateCouponCommand request, CancellationToken cancellationToken)
@@ -39,12 +43,19 @@ public sealed class DeactivateCouponCommandHandler : IRequestHandler<DeactivateC
             if (coupon is null)
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                _logger.LogWarning("Stage {Stage}: deactivate-coupon rejected, coupon {CouponCode} not found", "CouponNotFoundForDeactivate", request.CouponCode);
                 return Result.Failure<CouponAdminViewDto>(Error.NotFound($"Coupon '{request.CouponCode}' not found."));
             }
 
             if (coupon.Version != request.ExpectedVersion)
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                _logger.LogWarning(
+                    "Stage {Stage}: deactivate-coupon rejected for {CouponCode}, expected version {ExpectedVersion} but current version is {CurrentVersion}",
+                    "CouponDeactivateStaleVersion",
+                    request.CouponCode,
+                    request.ExpectedVersion,
+                    coupon.Version);
                 return Result.Failure<CouponAdminViewDto>(
                     Error.Custom(ErrorCodes.StaleVersion, $"Expected version {request.ExpectedVersion} but current version is {coupon.Version}."));
             }
@@ -53,6 +64,7 @@ public sealed class DeactivateCouponCommandHandler : IRequestHandler<DeactivateC
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
+            _logger.LogInformation("Stage {Stage}: coupon {CouponCode} deactivated", "CouponDeactivatedStepCompleted", coupon.CouponCode);
             return Result.Success(CouponAdminViewDto.FromDomain(coupon));
         }
         catch

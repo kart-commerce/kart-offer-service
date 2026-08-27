@@ -28,7 +28,10 @@ public sealed class LoggingBehavior<TRequest, TResponse> : IPipelineBehavior<TRe
 
         var response = await next();
 
-        _logger.LogInformation("{RequestName} completed in {ElapsedMilliseconds}ms", requestName, stopwatch.ElapsedMilliseconds);
+        _logger.LogInformation(
+            "{RequestName} completed in {ElapsedMilliseconds}ms",
+            requestName,
+            stopwatch.ElapsedMilliseconds);
 
         return response;
     }

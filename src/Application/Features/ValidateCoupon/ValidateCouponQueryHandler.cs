@@ -1,6 +1,7 @@
 using KartOfferService.Application.Common.Interfaces;
 using KartOfferService.Domain.Coupons;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace KartOfferService.Application.Features.ValidateCoupon;
 
@@ -15,11 +16,13 @@ public sealed class ValidateCouponQueryHandler : IRequestHandler<ValidateCouponQ
 {
     private readonly ICouponReadRepository _couponReads;
     private readonly TimeProvider _timeProvider;
+    private readonly ILogger<ValidateCouponQueryHandler> _logger;
 
-    public ValidateCouponQueryHandler(ICouponReadRepository couponReads, TimeProvider timeProvider)
+    public ValidateCouponQueryHandler(ICouponReadRepository couponReads, TimeProvider timeProvider, ILogger<ValidateCouponQueryHandler> logger)
     {
         _couponReads = couponReads;
         _timeProvider = timeProvider;
+        _logger = logger;
     }
 
     public async Task<ValidateCouponResponse> Handle(ValidateCouponQuery request, CancellationToken cancellationToken)
@@ -27,6 +30,7 @@ public sealed class ValidateCouponQueryHandler : IRequestHandler<ValidateCouponQ
         var coupon = await _couponReads.GetAsync(request.CouponCode, cancellationToken);
         if (coupon is null)
         {
+            _logger.LogInformation("Stage {Stage}: coupon {CouponCode} not found - invalid", "CouponValidateNotFoundBranch", request.CouponCode);
             return new ValidateCouponResponse(false, "Coupon not found.");
         }
 
@@ -35,14 +39,17 @@ public sealed class ValidateCouponQueryHandler : IRequestHandler<ValidateCouponQ
 
         if (!limit.IsWithinWindow(now))
         {
+            _logger.LogInformation("Stage {Stage}: coupon {CouponCode} is outside its valid window - invalid", "CouponValidateExpiredBranch", request.CouponCode);
             return new ValidateCouponResponse(false, "Coupon is not within its valid window.");
         }
 
         if (!limit.HasGlobalCapacity(coupon.TotalRedemptions))
         {
+            _logger.LogInformation("Stage {Stage}: coupon {CouponCode} has reached its global redemption cap - invalid", "CouponValidateGlobalCapReachedBranch", request.CouponCode);
             return new ValidateCouponResponse(false, "Coupon has reached its global redemption cap.");
         }
 
+        _logger.LogInformation("Stage {Stage}: coupon {CouponCode} step completed - eligible for redemption", "CouponValidateEligibleStepCompleted", request.CouponCode);
         return new ValidateCouponResponse(true, null);
     }
 }

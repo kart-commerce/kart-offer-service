@@ -7,6 +7,11 @@
 
   <ItemGroup>
     <PackageReference Include="Kart.Shared.Auditing" Version="0.1.0" />
+    <!-- kart-conventions.md Observability section: KartFlowContext/FlowEnricher for this layer's
+         hosted services (outbox relay, RabbitMQ consumers) - the Api layer already references this
+         for AddKartObservability/controllers; this project needs it directly for its own
+         BackgroundService entry points. -->
+    <PackageReference Include="Kart.Shared.Observability" Version="0.3.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.10">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

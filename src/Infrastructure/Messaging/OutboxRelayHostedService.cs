@@ -1,5 +1,7 @@
 using System.Text;
 using Kart.Shared.Messaging;
+using Kart.Shared.Observability;
+using KartOfferService.Application.Common;
 using KartOfferService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,6 +23,19 @@ public sealed class OutboxRelayHostedService : BackgroundService
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan ReconnectDelay = TimeSpan.FromSeconds(10);
     private const int BatchSize = 100;
+
+    // Maps each published event type to the business-flows.md flow it belongs to. `PriceQuoteIssued`
+    // is deliberately absent - Pricing is not one of the two flows this service covers, so it gets
+    // no Flow tag rather than a guessed one.
+    private static readonly Dictionary<string, string> EventFlowNames = new()
+    {
+        ["CouponRedeemed"] = FlowNames.NormalShoppingPurchaseJourney,
+        ["CouponIssued"] = FlowNames.OffersCouponsPromotionsManagementAdmin,
+        ["CouponDeactivated"] = FlowNames.OffersCouponsPromotionsManagementAdmin,
+        ["CouponRedemptionVoided"] = FlowNames.OffersCouponsPromotionsManagementAdmin,
+        ["PromotionActivated"] = FlowNames.OffersCouponsPromotionsManagementAdmin,
+        ["PromotionDeactivated"] = FlowNames.OffersCouponsPromotionsManagementAdmin,
+    };
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConnectionFactory _connectionFactory;
@@ -90,18 +105,33 @@ public sealed class OutboxRelayHostedService : BackgroundService
 
         foreach (var outboxEvent in pending)
         {
+            using var flowScope = EventFlowNames.TryGetValue(outboxEvent.EventType, out var flowName)
+                ? KartFlowContext.Push(flowName)
+                : null;
+
+            var exchange = _manifest.ExchangeFor(outboxEvent.EventType);
+            var routingKey = _manifest.RoutingKeyFor(outboxEvent.EventType);
+
             var properties = channel.CreateBasicProperties();
             properties.Persistent = true;
             properties.MessageId = outboxEvent.Id.ToString();
             properties.ContentType = "application/json";
 
             channel.BasicPublish(
-                exchange: _manifest.ExchangeFor(outboxEvent.EventType),
-                routingKey: _manifest.RoutingKeyFor(outboxEvent.EventType),
+                exchange: exchange,
+                routingKey: routingKey,
                 basicProperties: properties,
                 body: Encoding.UTF8.GetBytes(outboxEvent.Payload));
 
             outboxEvent.MarkPublished(DateTimeOffset.UtcNow);
+
+            _logger.LogInformation(
+                "Stage {Stage}: outbox event {EventId} of type {EventType} published to {Exchange}/{RoutingKey}",
+                "OutboxEventPublished",
+                outboxEvent.Id,
+                outboxEvent.EventType,
+                exchange,
+                routingKey);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);

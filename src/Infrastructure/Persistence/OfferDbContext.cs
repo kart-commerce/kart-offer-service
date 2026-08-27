@@ -4,6 +4,8 @@ using KartOfferService.Domain.Pricing;
 using KartOfferService.Domain.Promotions;
 using KartOfferService.Infrastructure.Persistence.Configurations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace KartOfferService.Infrastructure.Persistence;
 
@@ -15,8 +17,15 @@ namespace KartOfferService.Infrastructure.Persistence;
 /// </summary>
 public sealed class OfferDbContext : DbContext
 {
-    public OfferDbContext(DbContextOptions<OfferDbContext> options) : base(options)
+    private readonly ILogger<OfferDbContext> _logger;
+
+    // `logger` defaults to a no-op instance so OfferDbContextFactory's design-time
+    // (`dotnet ef migrations ...`) construction path, and any test that builds this DbContext
+    // directly with only DbContextOptions, keep compiling unchanged - the runtime DI container
+    // always supplies a real one via the generic ILogger<T> registration every service gets for free.
+    public OfferDbContext(DbContextOptions<OfferDbContext> options, ILogger<OfferDbContext>? logger = null) : base(options)
     {
+        _logger = logger ?? NullLogger<OfferDbContext>.Instance;
     }
 
     public DbSet<Coupon> Coupons => Set<Coupon>();
@@ -54,15 +63,22 @@ public sealed class OfferDbContext : DbContext
             .Where(entity => entity.DomainEvents.Count > 0)
             .ToList();
 
+        var enqueuedByAggregate = new List<(string EntityTypeName, Guid AggregateId, List<OfferOutboxEvent> OutboxEvents)>();
+
         foreach (var entity in entitiesWithEvents)
         {
             var aggregateId = ResolveAggregateId(entity);
             var actingPrincipal = ResolveActingPrincipal(entity);
+            var enqueued = new List<OfferOutboxEvent>();
 
             foreach (var domainEvent in entity.DomainEvents)
             {
-                OutboxEvents.Add(OfferOutboxEvent.FromDomainEvent(domainEvent, aggregateId, actingPrincipal));
+                var outboxEvent = OfferOutboxEvent.FromDomainEvent(domainEvent, aggregateId, actingPrincipal);
+                OutboxEvents.Add(outboxEvent);
+                enqueued.Add(outboxEvent);
             }
+
+            enqueuedByAggregate.Add((entity.GetType().Name, aggregateId, enqueued));
         }
 
         var result = await base.SaveChangesAsync(cancellationToken);
@@ -70,6 +86,22 @@ public sealed class OfferDbContext : DbContext
         foreach (var entity in entitiesWithEvents)
         {
             entity.ClearDomainEvents();
+        }
+
+        foreach (var (entityTypeName, aggregateId, outboxEvents) in enqueuedByAggregate)
+        {
+            if (outboxEvents.Count == 0)
+            {
+                continue;
+            }
+
+            _logger.LogInformation(
+                "Stage {Stage}: {EntityType} {AggregateId} persisted, outbox event(s) {OutboxEventIds} ({EventTypes}) enqueued",
+                $"{entityTypeName}PersistedOutboxEventEnqueued",
+                entityTypeName,
+                aggregateId,
+                string.Join(",", outboxEvents.Select(e => e.Id)),
+                string.Join(",", outboxEvents.Select(e => e.EventType)));
         }
 
         return result;

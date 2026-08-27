@@ -3,6 +3,7 @@ using KartOfferService.Application.Common.Interfaces;
 using KartOfferService.Application.Common.Models;
 using KartOfferService.Application.Features.ValidateCoupon;
 using KartOfferService.UnitTests.TestSupport;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -17,7 +18,7 @@ public class ValidateCouponQueryHandlerTests
     {
         var reads = Substitute.For<ICouponReadRepository>();
         reads.GetAsync("MISSING", Arg.Any<CancellationToken>()).Returns((CouponReadModel?)null);
-        var handler = new ValidateCouponQueryHandler(reads, new FixedTimeProvider(Now));
+        var handler = new ValidateCouponQueryHandler(reads, new FixedTimeProvider(Now), NullLogger<ValidateCouponQueryHandler>.Instance);
 
         var response = await handler.Handle(new ValidateCouponQuery("MISSING", "user-1", new MoneyDto(10, "USD")), CancellationToken.None);
 
@@ -31,7 +32,7 @@ public class ValidateCouponQueryHandlerTests
         var reads = Substitute.For<ICouponReadRepository>();
         reads.GetAsync("SAVE10", Arg.Any<CancellationToken>())
             .Returns(new CouponReadModel("SAVE10", null, 100, Now.AddDays(-1), Now.AddDays(30), 5));
-        var handler = new ValidateCouponQueryHandler(reads, new FixedTimeProvider(Now));
+        var handler = new ValidateCouponQueryHandler(reads, new FixedTimeProvider(Now), NullLogger<ValidateCouponQueryHandler>.Instance);
 
         var response = await handler.Handle(new ValidateCouponQuery("SAVE10", "user-1", new MoneyDto(10, "USD")), CancellationToken.None);
 
@@ -45,7 +46,7 @@ public class ValidateCouponQueryHandlerTests
         var reads = Substitute.For<ICouponReadRepository>();
         reads.GetAsync("SAVE10", Arg.Any<CancellationToken>())
             .Returns(new CouponReadModel("SAVE10", null, 10, Now.AddDays(-1), Now.AddDays(30), 10));
-        var handler = new ValidateCouponQueryHandler(reads, new FixedTimeProvider(Now));
+        var handler = new ValidateCouponQueryHandler(reads, new FixedTimeProvider(Now), NullLogger<ValidateCouponQueryHandler>.Instance);
 
         var response = await handler.Handle(new ValidateCouponQuery("SAVE10", "user-1", new MoneyDto(10, "USD")), CancellationToken.None);
 
@@ -58,7 +59,7 @@ public class ValidateCouponQueryHandlerTests
         var reads = Substitute.For<ICouponReadRepository>();
         reads.GetAsync("SAVE10", Arg.Any<CancellationToken>())
             .Returns(new CouponReadModel("SAVE10", null, null, Now.AddDays(1), Now.AddDays(30), 0));
-        var handler = new ValidateCouponQueryHandler(reads, new FixedTimeProvider(Now));
+        var handler = new ValidateCouponQueryHandler(reads, new FixedTimeProvider(Now), NullLogger<ValidateCouponQueryHandler>.Instance);
 
         var response = await handler.Handle(new ValidateCouponQuery("SAVE10", "user-1", new MoneyDto(10, "USD")), CancellationToken.None);
 

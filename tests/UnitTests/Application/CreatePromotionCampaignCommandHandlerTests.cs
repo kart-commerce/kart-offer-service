@@ -4,6 +4,7 @@ using KartOfferService.Application.Common.Models;
 using KartOfferService.Application.Features.CreatePromotionCampaign;
 using KartOfferService.Domain.Promotions;
 using KartOfferService.UnitTests.TestSupport;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -18,7 +19,7 @@ public class CreatePromotionCampaignCommandHandlerTests
     private readonly ICurrentPrincipal _currentPrincipal = Substitute.For<ICurrentPrincipal>();
 
     private CreatePromotionCampaignCommandHandler CreateHandler() =>
-        new(_campaigns, _unitOfWork, _currentPrincipal, new FixedTimeProvider(Now));
+        new(_campaigns, _unitOfWork, _currentPrincipal, new FixedTimeProvider(Now), NullLogger<CreatePromotionCampaignCommandHandler>.Instance);
 
     [Fact]
     public async Task Handle_WithPercentageOffRule_CreatesCampaign_AndSaves()

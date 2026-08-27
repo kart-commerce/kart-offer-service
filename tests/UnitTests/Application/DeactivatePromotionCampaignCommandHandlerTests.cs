@@ -4,6 +4,7 @@ using KartOfferService.Application.Common.Interfaces;
 using KartOfferService.Application.Features.DeactivatePromotionCampaign;
 using KartOfferService.Domain.Promotions;
 using KartOfferService.UnitTests.TestSupport;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
 
@@ -18,7 +19,7 @@ public class DeactivatePromotionCampaignCommandHandlerTests
     private readonly ICurrentPrincipal _currentPrincipal = Substitute.For<ICurrentPrincipal>();
 
     private DeactivatePromotionCampaignCommandHandler CreateHandler() =>
-        new(_campaigns, _unitOfWork, _currentPrincipal, new FixedTimeProvider(Now));
+        new(_campaigns, _unitOfWork, _currentPrincipal, new FixedTimeProvider(Now), NullLogger<DeactivatePromotionCampaignCommandHandler>.Instance);
 
     [Fact]
     public async Task Handle_WhenCampaignNotFound_ReturnsNotFound()
